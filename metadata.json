@@ -1,0 +1,8 @@
+{
+  "name": "Namibia Cinematic Canvas",
+  "description": "A clean, black-background foundation page optimized for future cinematic video integration within your existing project structure.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
