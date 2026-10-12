@@ -23,13 +23,11 @@ interface SceneInfo {
   settleStart: number;
   settleEnd: number;
   exitEnd: number;
-  settledCenter: number;
   audioPath: string;
   audioDuration: number;
-  holdSeconds: number; // Duration to linger in automatic Play mode
 }
 
-// 6 Scenic Chapters with accurate timings & unhurried pauses
+// 6 Scenic Chapters with continuous, unhurried progress timings
 const SCENE_CONFIG: SceneInfo[] = [
   {
     id: 1,
@@ -41,12 +39,10 @@ const SCENE_CONFIG: SceneInfo[] = [
     positionClass: 'left-6 md:left-16 bottom-24 md:bottom-32 max-w-2xl text-left',
     enterStart: 0.01,
     settleStart: 0.035,
-    settleEnd: 0.075,
-    exitEnd: 0.095,
-    settledCenter: 0.055,
+    settleEnd: 0.085,
+    exitEnd: 0.11,
     audioPath: '/audio/narration-1.wav',
-    audioDuration: 3.2,
-    holdSeconds: 5.0,
+    audioDuration: 2.84,
   },
   {
     id: 2,
@@ -58,12 +54,10 @@ const SCENE_CONFIG: SceneInfo[] = [
     positionClass: 'right-6 md:right-16 top-28 md:top-36 max-w-2xl ml-auto text-right',
     enterStart: 0.12,
     settleStart: 0.15,
-    settleEnd: 0.22,
-    exitEnd: 0.25,
-    settledCenter: 0.185,
+    settleEnd: 0.23,
+    exitEnd: 0.26,
     audioPath: '/audio/narration-2.wav',
-    audioDuration: 4.36,
-    holdSeconds: 6.2,
+    audioDuration: 3.92,
   },
   {
     id: 3,
@@ -73,14 +67,12 @@ const SCENE_CONFIG: SceneInfo[] = [
     line2: 'Others stay with you forever.',
     direction: 'left-to-right',
     positionClass: 'left-6 md:left-16 top-28 md:top-36 max-w-3xl text-left',
-    enterStart: 0.28,
-    settleStart: 0.32,
-    settleEnd: 0.44,
-    exitEnd: 0.48,
-    settledCenter: 0.38,
+    enterStart: 0.27,
+    settleStart: 0.31,
+    settleEnd: 0.46,
+    exitEnd: 0.49,
     audioPath: '/audio/narration-3.wav',
-    audioDuration: 6.16,
-    holdSeconds: 8.2,
+    audioDuration: 5.76,
   },
   {
     id: 4,
@@ -90,14 +82,12 @@ const SCENE_CONFIG: SceneInfo[] = [
     line2: 'Discover what moves you.',
     direction: 'right-to-left',
     positionClass: 'right-6 md:right-16 bottom-24 md:bottom-32 max-w-3xl ml-auto text-right',
-    enterStart: 0.51,
-    settleStart: 0.55,
-    settleEnd: 0.63,
-    exitEnd: 0.67,
-    settledCenter: 0.59,
+    enterStart: 0.50,
+    settleStart: 0.54,
+    settleEnd: 0.65,
+    exitEnd: 0.68,
     audioPath: '/audio/narration-4.wav',
-    audioDuration: 5.28,
-    holdSeconds: 7.2,
+    audioDuration: 4.60,
   },
   {
     id: 5,
@@ -107,14 +97,12 @@ const SCENE_CONFIG: SceneInfo[] = [
     line2: 'Find the extraordinary.',
     direction: 'left-to-right',
     positionClass: 'left-6 md:left-16 bottom-24 md:bottom-32 max-w-2xl text-left',
-    enterStart: 0.70,
-    settleStart: 0.73,
-    settleEnd: 0.80,
-    exitEnd: 0.83,
-    settledCenter: 0.765,
+    enterStart: 0.69,
+    settleStart: 0.72,
+    settleEnd: 0.82,
+    exitEnd: 0.84,
     audioPath: '/audio/narration-5.wav',
-    audioDuration: 5.84,
-    holdSeconds: 7.8,
+    audioDuration: 5.32,
   },
   {
     id: 6,
@@ -126,13 +114,10 @@ const SCENE_CONFIG: SceneInfo[] = [
     positionClass: 'right-6 md:right-16 top-28 md:top-36 max-w-2xl ml-auto text-right',
     enterStart: 0.85,
     settleStart: 0.875,
-    settleEnd: 0.935,
+    settleEnd: 0.94,
     exitEnd: 0.955,
-    settledCenter: 0.905,
     audioPath: '/audio/narration-6.wav',
-    audioDuration: 5.76,
-    // Generous Etosha hold: speech (5.76s) + 4.5s watering hole visual stillness = 10.3s
-    holdSeconds: 10.3,
+    audioDuration: 4.88,
   },
 ];
 
@@ -142,10 +127,8 @@ const BRAND_REVEAL = {
   enterStart: 0.965,
   settleStart: 0.975,
   settleEnd: 1.00,
-  settledCenter: 0.985,
   audioPath: '/audio/narration-7.wav',
-  audioDuration: 1.72,
-  holdSeconds: 5.5,
+  audioDuration: 1.52,
 };
 
 export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
@@ -158,7 +141,7 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
   const sceneRefs = useRef<(HTMLDivElement | null)[]>([]);
   const brandRevealRef = useRef<HTMLDivElement | null>(null);
 
-  // Direct DOM references for media controller (avoids 60fps React re-renders while scrolling)
+  // Direct DOM references for media controller (avoids React re-renders during playback/scroll)
   const progressBarRef = useRef<HTMLDivElement | null>(null);
   const progressTextRef = useRef<HTMLSpanElement | null>(null);
   const chapterTextRef = useRef<HTMLSpanElement | null>(null);
@@ -180,12 +163,13 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
   const activeAudioIdRef = useRef<number | null>(null);
   const activeSceneIdRef = useRef<number | null>(null);
   const debounceAudioTimerRef = useRef<number | null>(null);
+  const lastProgressRef = useRef<number>(0);
 
   // Timeline & Scroll coordinates
   const masterTimelineRef = useRef<gsap.core.Timeline | null>(null);
   const scrollTriggerRef = useRef<ScrollTrigger | null>(null);
   const scrollDistanceRef = useRef<number>(5400);
-  const autoPlayTimelineRef = useRef<gsap.core.Timeline | null>(null);
+  const autoPlayTweenRef = useRef<gsap.core.Tween | null>(null);
   const currentProgressRef = useRef<number>(0);
 
   // Preload and manage all 7 narration audio clips
@@ -213,7 +197,7 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
   }, []);
 
   // Safe audio fade-out utility
-  const fadeOutActiveAudio = useCallback((durationMs = 250) => {
+  const fadeOutActiveAudio = useCallback((durationMs = 200) => {
     const activeId = activeAudioIdRef.current;
     if (activeId === null) return;
 
@@ -259,9 +243,9 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
         return;
       }
 
-      // Fade out previous audio
+      // Fade out previous audio smoothly
       if (activeAudioIdRef.current !== null && activeAudioIdRef.current !== sceneId) {
-        fadeOutActiveAudio(180);
+        fadeOutActiveAudio(150);
       }
 
       audio.currentTime = 0;
@@ -280,9 +264,13 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
     [fadeOutActiveAudio]
   );
 
-  // Update narration triggers based on scroll progress
+  // Update narration triggers based on scroll progress (Direction-aware: only down!)
   const updateNarrationState = useCallback(
     (progress: number) => {
+      const isScrollingDown = progress > lastProgressRef.current + 0.0001;
+      const isScrollingUp = progress < lastProgressRef.current - 0.0001;
+      lastProgressRef.current = progress;
+
       currentProgressRef.current = progress;
 
       // Update HUD progress bar directly (no React re-renders)
@@ -298,7 +286,8 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
         if (chapterTextRef.current) {
           chapterTextRef.current.textContent = 'GET FOUND';
         }
-        if (activeSceneIdRef.current !== 7) {
+        // Only trigger narration when scrolling forward (down)
+        if (isScrollingDown && activeSceneIdRef.current !== 7) {
           activeSceneIdRef.current = 7;
           playNarration(7);
         }
@@ -319,8 +308,18 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
           chapterTextRef.current.textContent = `${foundScene.chapter} · ${foundScene.location}`;
         }
 
-        // New scene entered (or scrolled backwards into it)
-        if (activeSceneIdRef.current !== foundScene.id) {
+        // When scrolling backwards (up), DO NOT play narration! Gently fade out any active audio
+        if (isScrollingUp) {
+          if (activeAudioIdRef.current !== null) {
+            fadeOutActiveAudio(150);
+          }
+          // Mark scene as reversed so scrolling forward down again will trigger it naturally
+          activeSceneIdRef.current = -foundScene.id;
+          return;
+        }
+
+        // Only trigger narration when scrolling DOWN (forward)
+        if (isScrollingDown && activeSceneIdRef.current !== foundScene.id) {
           activeSceneIdRef.current = foundScene.id;
 
           if (debounceAudioTimerRef.current) {
@@ -330,13 +329,7 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
             if (activeSceneIdRef.current === foundScene!.id) {
               playNarration(foundScene!.id);
             }
-          }, 80);
-        }
-      } else {
-        // Between scenes: gracefully fade speech
-        if (activeSceneIdRef.current !== null) {
-          activeSceneIdRef.current = null;
-          fadeOutActiveAudio(250);
+          }, 60);
         }
       }
     },
@@ -394,22 +387,18 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
     const scrollDistance = Math.round(duration * 155); // ~5,400px of luxurious scroll distance
     scrollDistanceRef.current = scrollDistance;
 
-    // Hardware-safe seeking mechanism
+    // Fluid, compositor-friendly seeking mechanism
     let targetTime = 0;
-    let pendingSeekTime: number | null = null;
     let rafId: number | null = null;
 
     const performSeek = () => {
       if (!video || !video.duration) return;
-
-      if (video.seeking) {
-        pendingSeekTime = targetTime;
-        return;
-      }
+      // If browser decoder is currently seeking, let it finish and paint the frame
+      if (video.seeking) return;
 
       // Clamp target time: ensure video stays at the final Etosha frame for progress >= 0.88
       const clamped = Math.max(0, Math.min(targetTime, video.duration - 0.05));
-      if (Math.abs(video.currentTime - clamped) < 0.025) {
+      if (Math.abs(video.currentTime - clamped) < 0.015) {
         return;
       }
 
@@ -419,17 +408,6 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
         // ignore
       }
     };
-
-    const handleSeeked = () => {
-      if (pendingSeekTime !== null) {
-        const nextTime = pendingSeekTime;
-        pendingSeekTime = null;
-        targetTime = nextTime;
-        performSeek();
-      }
-    };
-
-    video.addEventListener('seeked', handleSeeked);
 
     const requestSeek = (time: number) => {
       targetTime = time;
@@ -556,7 +534,6 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
     ScrollTrigger.refresh();
 
     return () => {
-      video.removeEventListener('seeked', handleSeeked);
       if (rafId !== null) {
         cancelAnimationFrame(rafId);
       }
@@ -573,9 +550,9 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
 
   // Clean auto-play cancellation
   const stopAutoPlay = useCallback(() => {
-    if (autoPlayTimelineRef.current) {
-      autoPlayTimelineRef.current.kill();
-      autoPlayTimelineRef.current = null;
+    if (autoPlayTweenRef.current) {
+      autoPlayTweenRef.current.kill();
+      autoPlayTweenRef.current = null;
     }
     setIsAutoPlaying(false);
   }, []);
@@ -583,7 +560,7 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
   // Listen for manual user interactions (wheel, touch, keyboard) to smoothly pause AutoPlay
   useEffect(() => {
     const handleManualScroll = () => {
-      if (autoPlayTimelineRef.current) {
+      if (autoPlayTweenRef.current) {
         stopAutoPlay();
       }
     };
@@ -602,10 +579,11 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
     };
   }, [stopAutoPlay]);
 
-  // Start or resume Automatic Play Mode
+  // Start or resume Automatic Play Mode (Smooth, continuous linear progression)
   const startAutoPlay = useCallback(() => {
-    if (autoPlayTimelineRef.current) {
-      autoPlayTimelineRef.current.kill();
+    if (autoPlayTweenRef.current) {
+      autoPlayTweenRef.current.kill();
+      autoPlayTweenRef.current = null;
     }
 
     setIsAutoPlaying(true);
@@ -618,6 +596,8 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
     // If near the very end, restart cleanly from 0
     if (startP >= 0.985) {
       startP = 0;
+      currentProgressRef.current = 0;
+      lastProgressRef.current = 0;
       const lenis = getGlobalLenis();
       if (lenis) {
         lenis.scrollTo(0, { immediate: true });
@@ -626,65 +606,41 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
       }
     }
 
-    const autoTl = gsap.timeline({
+    // Resume any paused active narration
+    if (activeAudioIdRef.current !== null) {
+      const activeAudio = audioMapRef.current.get(activeAudioIdRef.current);
+      if (activeAudio && activeAudio.paused && activeAudio.currentTime > 0) {
+        activeAudio.play().catch(() => {});
+      }
+    }
+
+    // 52-second cinematic journey: steady, filmic, continuous linear advance
+    const TOTAL_JOURNEY_SECONDS = 52;
+    const remainingFraction = Math.max(0.01, 1.0 - startP);
+    const duration = remainingFraction * TOTAL_JOURNEY_SECONDS;
+
+    const progressTracker = { p: startP };
+
+    const tween = gsap.to(progressTracker, {
+      p: 1.0,
+      duration: duration,
+      ease: 'none', // Continuous 100% linear glide without artificial stop-and-go jerks
+      onUpdate: () => {
+        const targetY = progressTracker.p * scrollDist;
+        const lenis = getGlobalLenis();
+        if (lenis) {
+          lenis.scrollTo(targetY, { immediate: true });
+        } else {
+          window.scrollTo(0, targetY);
+        }
+      },
       onComplete: () => {
         setIsAutoPlaying(false);
         setIsJourneyComplete(true);
       },
     });
 
-    autoPlayTimelineRef.current = autoTl;
-
-    // Sequence of key checkpoints through scenes and final brand reveal
-    const journeyCheckpoints = [
-      ...SCENE_CONFIG.map((s) => ({
-        targetProgress: s.settledCenter,
-        holdSeconds: s.holdSeconds,
-      })),
-      {
-        targetProgress: BRAND_REVEAL.settledCenter,
-        holdSeconds: BRAND_REVEAL.holdSeconds,
-      },
-      {
-        targetProgress: 1.0,
-        holdSeconds: 1.0,
-      },
-    ];
-
-    const upcomingCheckpoints = journeyCheckpoints.filter(
-      (cp) => cp.targetProgress > startP - 0.02
-    );
-
-    let fromProgress = startP;
-
-    upcomingCheckpoints.forEach((cp) => {
-      const delta = Math.max(0.01, cp.targetProgress - fromProgress);
-      // Pacing: smooth gliding time between scenes (~2.2s - 3.5s)
-      const travelTime = Math.max(2.0, delta * 24);
-
-      const progressProxy = { p: fromProgress };
-
-      // 1. Smoothly glide to the scene's settled viewpoint
-      autoTl.to(progressProxy, {
-        p: cp.targetProgress,
-        duration: travelTime,
-        ease: 'power1.inOut',
-        onUpdate: () => {
-          const targetY = progressProxy.p * scrollDist;
-          const lenis = getGlobalLenis();
-          if (lenis) {
-            lenis.scrollTo(targetY, { immediate: true });
-          } else {
-            window.scrollTo(0, targetY);
-          }
-        },
-      });
-
-      // 2. Lingering hold: video and text settle, narration plays completely, followed by visual pause
-      autoTl.to({}, { duration: cp.holdSeconds });
-
-      fromProgress = cp.targetProgress;
-    });
+    autoPlayTweenRef.current = tween;
   }, []);
 
   // Toggle Play / Pause button
@@ -695,7 +651,7 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
 
       if (isAutoPlaying) {
         stopAutoPlay();
-        // Pause active narration
+        // Pause active narration at current syllable
         const activeId = activeAudioIdRef.current;
         if (activeId !== null) {
           const audio = audioMapRef.current.get(activeId);
@@ -719,6 +675,7 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
       stopAutoPlay();
       fadeOutActiveAudio(150);
       activeSceneIdRef.current = null;
+      lastProgressRef.current = 0;
       setIsJourneyComplete(false);
 
       const lenis = getGlobalLenis();
@@ -753,7 +710,7 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
         activeAudioIdRef.current = null;
       } else {
         // Unmute: replay narration for active scene
-        if (activeSceneIdRef.current !== null) {
+        if (activeSceneIdRef.current !== null && activeSceneIdRef.current > 0) {
           playNarration(activeSceneIdRef.current);
         }
       }
@@ -822,15 +779,12 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
           ref={brandRevealRef}
           className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 pointer-events-none z-30 opacity-0 invisible will-change-transform"
         >
-          {/* Brand Wordmark / Logo */}
-          <div className="flex items-center gap-2 mb-4 sm:mb-6">
-            <span className="font-cinzel tracking-[0.35em] text-sm sm:text-base md:text-lg text-white font-semibold uppercase">
-              FOUND
-            </span>
-            <span className="text-[10px] sm:text-xs tracking-[0.45em] text-[#CBB99E] font-medium uppercase">
-              NAMIBIA
-            </span>
-          </div>
+          {/* Official Uploaded FOUND Logo */}
+          <img
+            src="/found%20logo%20white@2x.png"
+            alt="FOUND Namibia"
+            className="h-12 sm:h-16 md:h-20 w-auto object-contain mb-5 sm:mb-7 drop-shadow-[0_8px_32px_rgba(0,0,0,0.9)]"
+          />
 
           {/* GET FOUND. Statement */}
           <h1 className="font-editorial italic text-5xl sm:text-7xl md:text-9xl text-[#FAF7EE] tracking-wide leading-none drop-shadow-[0_12px_40px_rgba(0,0,0,0.95)]">

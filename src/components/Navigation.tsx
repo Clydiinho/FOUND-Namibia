@@ -46,21 +46,18 @@ export const Navigation: React.FC<NavigationProps> = ({ onScrollToTop }) => {
         aria-label="Main Navigation"
         className="pointer-events-auto w-full max-w-4xl relative flex items-center justify-between px-4 sm:px-6 py-2.5 rounded-full bg-[#0a0a0c]/80 backdrop-blur-xl border border-white/15 shadow-[0_16px_36px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.15)] transition-all duration-300"
       >
-        {/* Brand Wordmark / Logo */}
+        {/* Brand Logo */}
         <a
           href="#top"
           onClick={handleLogoClick}
-          className="flex items-center gap-2 group outline-none focus-visible:ring-2 focus-visible:ring-white/40 rounded-full py-1 px-1.5 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+          className="flex items-center gap-2 group outline-none focus-visible:ring-2 focus-visible:ring-white/40 rounded-full py-0.5 px-2 transition-transform hover:scale-[1.02] active:scale-[0.98]"
           title="FOUND Namibia"
         >
-          <div className="flex items-baseline gap-1.5 select-none pl-1">
-            <span className="font-cinzel tracking-[0.25em] text-white text-sm sm:text-base font-semibold leading-none uppercase">
-              FOUND
-            </span>
-            <span className="text-[10px] sm:text-xs tracking-[0.3em] text-[#CBB99E] font-medium uppercase leading-none">
-              NAMIBIA
-            </span>
-          </div>
+          <img
+            src="/found%20logo%20white@2x.png"
+            alt="FOUND Namibia"
+            className="h-8 sm:h-9 md:h-10 w-auto object-contain"
+          />
         </a>
 
         {/* Desktop Navigation Links */}
