@@ -151,6 +151,7 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [isJourneyComplete, setIsJourneyComplete] = useState(false);
+  const [isAutoplayBlocked, setIsAutoplayBlocked] = useState(false);
 
   // Stable references for state accessible inside GSAP animation updates
   const isAudioEnabledRef = useRef<boolean>(true);
@@ -164,6 +165,7 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
   const activeSceneIdRef = useRef<number | null>(null);
   const debounceAudioTimerRef = useRef<number | null>(null);
   const lastProgressRef = useRef<number>(0);
+  const pendingSceneUnlockRef = useRef<number | null>(null);
 
   // Timeline & Scroll coordinates
   const masterTimelineRef = useRef<gsap.core.Timeline | null>(null);
@@ -255,14 +257,41 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
         playPromise
           .then(() => {
             activeAudioIdRef.current = sceneId;
+            setIsAutoplayBlocked(false);
           })
-          .catch(() => {
-            // Handled gracefully
+          .catch((err) => {
+            // Autoplay policy prevented playback until user clicks/taps
+            if (err && (err.name === 'NotAllowedError' || err.name === 'SecurityError')) {
+              setIsAutoplayBlocked(true);
+              pendingSceneUnlockRef.current = sceneId;
+            }
           });
       }
     },
     [fadeOutActiveAudio]
   );
+
+  // Global user interaction listener to automatically unlock audio on first click/tap
+  useEffect(() => {
+    const handleUnlock = () => {
+      setIsAutoplayBlocked(false);
+      if (pendingSceneUnlockRef.current !== null) {
+        const pendingScene = pendingSceneUnlockRef.current;
+        pendingSceneUnlockRef.current = null;
+        playNarration(pendingScene);
+      }
+    };
+
+    window.addEventListener('pointerdown', handleUnlock, { passive: true });
+    window.addEventListener('click', handleUnlock, { passive: true });
+    window.addEventListener('touchstart', handleUnlock, { passive: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', handleUnlock);
+      window.removeEventListener('click', handleUnlock);
+      window.removeEventListener('touchstart', handleUnlock);
+    };
+  }, [playNarration]);
 
   // Update narration triggers based on scroll progress (Direction-aware: only down!)
   const updateNarrationState = useCallback(
@@ -865,6 +894,28 @@ export const CinematicCanvas: React.FC<CinematicCanvasProps> = ({
               />
             </div>
           </div>
+
+          {/* Autoplay blocked indicator */}
+          {isAutoplayBlocked && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsAutoplayBlocked(false);
+                if (pendingSceneUnlockRef.current !== null) {
+                  const s = pendingSceneUnlockRef.current;
+                  pendingSceneUnlockRef.current = null;
+                  playNarration(s);
+                } else if (activeSceneIdRef.current && activeSceneIdRef.current > 0) {
+                  playNarration(activeSceneIdRef.current);
+                }
+              }}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#D8C7A8] text-[#121214] text-[10px] font-semibold tracking-wider uppercase shadow-[0_0_15px_rgba(216,199,168,0.5)] animate-pulse cursor-pointer hover:bg-white transition-all"
+              title="Click anywhere to enable narration audio"
+            >
+              <Volume2 className="w-3 h-3" />
+              <span>Tap for Sound</span>
+            </button>
+          )}
 
           {/* Audio Mute/Unmute Toggle */}
           <button
